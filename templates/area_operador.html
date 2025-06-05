@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Área do Operador</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <div class="container">
+    <h2>Área do Operador</h2>
+
+    <form action="/upload" method="POST" enctype="multipart/form-data">
+      <label for="imagens">Selecionar Imagens da Lavoura:</label>
+      <input type="file" id="imagens" name="imagens" accept="image/*" multiple required>
+
+      <button type="submit" style="margin-top: 1rem;">Enviar Imagens</button>
+    </form>
+
+    <p><a href="/status">Verificar Status do Processamento</a></p>
+    <p style="text-align: center; margin-top: 1rem;">
+        <a href="/logout">Encerrar Sessão</a>
+    </p>
+  </div>
+</body>
+</html>
