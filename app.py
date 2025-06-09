@@ -101,35 +101,61 @@ def upload():
     cpf_produtor = operador.cpf_produtor
 
     arquivos = request.files.getlist('imagens')
-    nomes_imagens = []
+    if not arquivos:
+        return "Nenhuma imagem enviada.", 400
+
+    import mysql.connector
+    conn = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="senha123",         # ⬅ Altere isso
+        database="agrineural"          # ⬅ Altere isso
+    )
+    cursor = conn.cursor()
 
     upload_path = os.path.join(UPLOAD_FOLDER, cpf_produtor)
     status_path_base = os.path.join(STATUS_FOLDER, cpf_produtor)
-
     os.makedirs(upload_path, exist_ok=True)
     os.makedirs(status_path_base, exist_ok=True)
+
+    # Contador inicial de imagens
+    cursor.execute("SELECT COUNT(*) FROM imagens WHERE cpf_produtor = %s", (cpf_produtor,))
+    contador = cursor.fetchone()[0] + 1
 
     for file in arquivos:
         if file and file.filename:
             nome = file.filename
-            nomes_imagens.append(nome)
+            latitude = request.form.get(f'latitude_{nome}')
+            longitude = request.form.get(f'longitude_{nome}')
 
+            # Salvar fisicamente
             caminho_arquivo = os.path.join(upload_path, nome)
             file.save(caminho_arquivo)
 
             caminho_status = os.path.join(status_path_base, nome + ".txt")
             with open(caminho_status, 'w') as f:
                 f.write("Aguardando processamento")
-
             time.sleep(0.5)
             with open(caminho_status, 'w') as f:
                 f.write("Processando")
-
             time.sleep(1)
             with open(caminho_status, 'w') as f:
                 f.write("Concluído com sucesso ✅")
 
+            # Salvar no banco de dados
+            cursor.execute("""
+                INSERT INTO imagens (id, nome, latitude, longitude, cpf_produtor)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (contador, nome, int(latitude), int(longitude), cpf_produtor))
+            contador += 1
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
     return redirect(url_for('status'))
+
+
 
 
 @app.route('/status')
