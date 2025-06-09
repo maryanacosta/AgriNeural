@@ -8,7 +8,10 @@ app = Flask(__name__)
 dao = UsuarioDAO(password='senha123')  # ajuste se necessário
 app.secret_key = 'chave_secreta_qualquer'
 UPLOAD_FOLDER = 'uploads'
+STATUS_FOLDER = 'status'
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(STATUS_FOLDER, exist_ok=True)
 
 
 @app.route('/')
@@ -22,7 +25,7 @@ def login():
         senha = request.form['senha']
         usuario = dao.autenticar(cpf, senha)
         if usuario:
-            session['cpf'] = usuario.cpf  # <- aqui está o ponto certo
+            session['cpf'] = usuario.cpf
 
             if isinstance(usuario, Produtor):
                 return redirect(url_for('area_produtor'))
@@ -41,10 +44,29 @@ def cadastro():
         nome = request.form['nome']
         senha = request.form['senha']
         tipo = request.form['tipo']
-        print(f"Cadastro recebido: cpf={cpf}, senha={senha}, tipo={tipo}, nome={nome}")
-        dao.cadastro(cpf, senha, tipo, nome)
+        cpf_produtor = request.form.get('cpf_produtor')
+
+        erro = None
+
+        if tipo in ('operador', 'mosaiqueiro'):
+            if not cpf_produtor:
+                erro = "CPF do produtor é obrigatório para operadores e mosaiqueiros."
+            else:
+                produtor = dao.buscar_por_cpf(cpf_produtor)
+                if not produtor or not isinstance(produtor, Produtor):
+                    erro = "CPF do produtor informado não pertence a um produtor cadastrado."
+
+        if erro:
+            return render_template('cadastro.html', erro=erro)
+
+        if tipo == 'produtor':
+            cpf_produtor = None
+
+        dao.cadastro(cpf, senha, tipo, nome, cpf_produtor)
         return redirect(url_for('login'))
+
     return render_template('cadastro.html')
+
 
 @app.route('/area_produtor')
 def area_produtor():
@@ -64,11 +86,6 @@ def area_mosaiqueiro():
         return redirect(url_for('login'))
     return render_template('area_mosaiqueiro.html')
 
-UPLOAD_FOLDER = 'uploads'
-STATUS_FOLDER = 'status'
-
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(STATUS_FOLDER, exist_ok=True)
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -76,11 +93,18 @@ def upload():
         return "Você precisa estar logado como operador.", 403
 
     cpf = session['cpf']
+    operador = dao.buscar_por_cpf(cpf)
+
+    if not operador or not isinstance(operador, Operador):
+        return "Apenas operadores podem enviar imagens.", 403
+
+    cpf_produtor = operador.cpf_produtor
+
     arquivos = request.files.getlist('imagens')
     nomes_imagens = []
 
-    upload_path = os.path.join(UPLOAD_FOLDER, cpf)
-    status_path_base = os.path.join(STATUS_FOLDER, cpf)
+    upload_path = os.path.join(UPLOAD_FOLDER, cpf_produtor)
+    status_path_base = os.path.join(STATUS_FOLDER, cpf_produtor)
 
     os.makedirs(upload_path, exist_ok=True)
     os.makedirs(status_path_base, exist_ok=True)
@@ -97,7 +121,6 @@ def upload():
             with open(caminho_status, 'w') as f:
                 f.write("Aguardando processamento")
 
-            # Simula processamento
             time.sleep(0.5)
             with open(caminho_status, 'w') as f:
                 f.write("Processando")
@@ -108,15 +131,22 @@ def upload():
 
     return redirect(url_for('status'))
 
+
 @app.route('/status')
 def status():
     if 'cpf' not in session:
         return "Você precisa estar logado como operador.", 403
 
     cpf = session['cpf']
+    operador = dao.buscar_por_cpf(cpf)
+
+    if not operador or not isinstance(operador, Operador):
+        return "Apenas operadores podem ver o status.", 403
+
+    cpf_produtor = operador.cpf_produtor
     status_list = []
 
-    pasta_status = os.path.join(STATUS_FOLDER, cpf)
+    pasta_status = os.path.join(STATUS_FOLDER, cpf_produtor)
     if not os.path.exists(pasta_status):
         return render_template('status.html', status_list=[])
 
@@ -129,10 +159,12 @@ def status():
 
     return render_template('status.html', status_list=status_list)
 
+
 @app.route('/logout')
 def logout():
-    session.pop('cpf', None)  # remove o CPF da sessão
+    session.pop('cpf', None)
     return redirect(url_for('login'))
+
 
 if __name__ == '__main__':
     app.run(debug=True)

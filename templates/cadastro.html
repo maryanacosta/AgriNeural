@@ -4,10 +4,33 @@
   <meta charset="UTF-8">
   <title>Cadastro - AgriNeural</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script>
+    function toggleCpfProdutorField() {
+      const tipo = document.getElementById("tipo").value;
+      const cpfProdutorGroup = document.getElementById("cpf-produtor-group");
+
+      if (tipo === "operador" || tipo === "mosaiqueiro") {
+        cpfProdutorGroup.style.display = "block";
+        document.getElementById("cpf_produtor").required = true;
+      } else {
+        cpfProdutorGroup.style.display = "none";
+        document.getElementById("cpf_produtor").required = false;
+        document.getElementById("cpf_produtor").value = "";
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      toggleCpfProdutorField(); // inicializa corretamente se houver valor
+      document.getElementById("tipo").addEventListener("change", toggleCpfProdutorField);
+    });
+  </script>
 </head>
 <body>
   <div class="container">
     <h2>Faça seu Cadastro</h2>
+    {% if erro %}
+      <p style="color: red;">{{ erro }}</p>
+    {% endif %}
     <form action="/cadastro" method="post">
       <label for="cpf">CPF:</label>
       <input type="text" id="cpf" name="cpf" required>
@@ -25,10 +48,14 @@
         <option value="operador">Operador</option>
       </select>
 
+      <div id="cpf-produtor-group" style="display: none; margin-top: 1rem;">
+        <label for="cpf_produtor">CPF do Produtor:</label>
+        <input type="text" id="cpf_produtor" name="cpf_produtor">
+      </div>
+
       <button type="submit" style="margin-top: 1rem;">Cadastrar</button>
     </form>
     <p><a href="login">Já tem conta? Faça login</a></p>
   </div>
 </body>
 </html>
-

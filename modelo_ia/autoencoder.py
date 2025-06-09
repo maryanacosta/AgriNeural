@@ -4,10 +4,10 @@ from tensorflow.keras.models import load_model
 import matplotlib.pyplot as plt
 
 # Carrega o modelo
-modelo = load_model("C:\\Users\\ACER\\Downloads\\model_checkpoint.h5transistor_AE_epoch_48.h5", compile=False)
+modelo = load_model("model_checkpoint.h5transistor_AE_epoch_48.h5", compile=False)
 
 # Lê e pré-processa uma imagem
-img_path = "C:\\Users\\ACER\\Downloads\\mamao3.jpg"
+img_path = "./imagens/mamao1.jpg"
 img = cv2.imread(img_path)
 img = cv2.resize(img, (256, 256))
 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)

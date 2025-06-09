@@ -3,7 +3,7 @@ from tensorflow.keras.models import load_model
 import visualkeras
 
 # Caminho para o arquivo .h5
-caminho = "C:\\Users\\ACER\\Downloads\\model_checkpoint.h5transistor_AE_epoch_48.h5"
+caminho = "root@LAPTOP-5R71RU8S:/mnt/c/Users/Maryana/Documents/agrineural/agrineural#"
 # Carregar o modelo
 #modelo = load_model("C:\\Users\\ACER\\Downloads\\model_checkpoint.h5transistor_AE_epoch_48.h5")
 modelo = load_model(caminho, compile=False)
