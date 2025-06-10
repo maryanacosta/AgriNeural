@@ -125,11 +125,83 @@ def area_operador():
         return redirect(url_for('login'))
     return render_template('area_operador.html')
 
+import mysql.connector
+from flask import session, render_template
+
+import mysql.connector
+from flask import session, render_template
+
 @app.route('/area_mosaiqueiro')
 def area_mosaiqueiro():
     if 'cpf' not in session:
-        return redirect(url_for('login'))
-    return render_template('area_mosaiqueiro.html')
+        return "Você precisa estar logado.", 403
+
+    cpf_mosaiqueiro = session['cpf']
+
+    # Conectar banco
+    conn = mysql.connector.connect(
+        host="localhost",
+        user="agrineural",
+        password="senha123",
+        database="agrineural"
+    )
+    cursor = conn.cursor(dictionary=True)
+
+    # Buscar CPF do produtor relacionado ao mosaiqueiro
+    cursor.execute("""
+        SELECT cpf_produtor FROM usuarios WHERE cpf = %s
+    """, (cpf_mosaiqueiro,))
+    res = cursor.fetchone()
+    if not res:
+        cursor.close()
+        conn.close()
+        return "Usuário mosaiqueiro inválido.", 403
+
+    cpf_produtor = res['cpf_produtor']
+
+    # Buscar localização da fazenda do produtor
+    cursor.execute("""
+        SELECT latitude, longitude, ext_territorial FROM localizacao WHERE cpf_produtor = %s
+    """, (cpf_produtor,))
+    localizacao = cursor.fetchone()
+    if not localizacao:
+        cursor.close()
+        conn.close()
+        return "Localização da fazenda não cadastrada.", 404
+
+    # Buscar imagens e se são anômalas ou não
+    cursor.execute("""
+        SELECT i.nome, i.latitude, i.longitude, r.anomala
+        FROM imagens i
+        LEFT JOIN resultados r ON i.id = r.id
+        WHERE i.cpf_produtor = %s
+    """, (cpf_produtor,))
+    imagens = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    # Preparar dados para o template
+    centro = {
+        'lat': float(localizacao['latitude']),
+        'lng': float(localizacao['longitude'])
+    }
+    raio = float(localizacao['ext_territorial'])  # assumindo em km
+
+    # Formatando imagens para o JS no template
+    lista_imagens = []
+    for img in imagens:
+        lista_imagens.append({
+            'nome': img['nome'],
+            'lat': float(img['latitude']),
+            'lng': float(img['longitude']),
+            'anomala': bool(img['anomala'])
+        })
+
+    return render_template('area_mosaiqueiro.html',
+                           centro=centro,
+                           raio=raio,
+                           imagens=lista_imagens)
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -138,72 +210,82 @@ def upload():
 
     cpf = session['cpf']
     operador = dao.buscar_por_cpf(cpf)
-
     if not operador or not isinstance(operador, Operador):
         return "Apenas operadores podem enviar imagens.", 403
 
     cpf_produtor = operador.cpf_produtor
-    arquivos = request.files.getlist('imagens')
+    arquivos  = request.files.getlist('imagens')
+    # não mais por filename, mas por índice
+    latitudes  = request.form
+    longitudes = request.form
+
     if not arquivos:
         return "Nenhuma imagem enviada.", 400
 
     conn = mysql.connector.connect(
         host="localhost",
-        user="root",
+        user="agrineural",
         password="senha123",
         database="agrineural"
     )
     cursor = conn.cursor()
 
-    upload_path = os.path.join(UPLOAD_FOLDER, cpf_produtor)
+    upload_path      = os.path.join(UPLOAD_FOLDER, cpf_produtor)
     status_path_base = os.path.join(STATUS_FOLDER, cpf_produtor)
     os.makedirs(upload_path, exist_ok=True)
     os.makedirs(status_path_base, exist_ok=True)
 
-    for file in arquivos:
-        if file and file.filename:
-            nome = file.filename
-            try:
-                latitude = float(request.form.get(f'latitude_{nome}', '0'))
-                longitude = float(request.form.get(f'longitude_{nome}', '0'))
-            except ValueError:
-                return f"Latitude ou longitude inválida para {nome}", 400
+    for idx, file in enumerate(arquivos):
+        if not file or not file.filename:
+            continue
 
-            caminho_arquivo = os.path.join(upload_path, nome)
-            file.save(caminho_arquivo)
+        nome = file.filename
 
-            caminho_status = os.path.join(status_path_base, nome + ".txt")
+        # pega latitude_0, longitude_0, latitude_1, etc.
+        try:
+            latitude  = float(request.form.get(f'latitude_{idx}', '0'))
+            longitude = float(request.form.get(f'longitude_{idx}', '0'))
+        except ValueError:
+            return f"Latitude ou longitude inválida para {nome}", 400
+
+        # salva a imagem
+        caminho_arquivo = os.path.join(upload_path, nome)
+        file.save(caminho_arquivo)
+
+        # status inicial
+        caminho_status = os.path.join(status_path_base, nome + ".txt")
+        with open(caminho_status, 'w', encoding='utf-8') as f:
+            f.write("Processando")
+
+        try:
+            img = cv2.imread(caminho_arquivo)
+            img = cv2.resize(img, (256, 256))
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img_norm = img.astype("float32") / 255.0
+            entrada = np.expand_dims(img_norm, axis=0)
+
+            reconstruida = modelo_ae.predict(entrada)[0]
+            erro = np.mean((img_norm - reconstruida) ** 2)
+            resultado = "Anômala" if erro > threshold else "Normal"
+
+            # grava no banco
+            cursor.execute(
+                "INSERT INTO imagens (nome, latitude, longitude, cpf_produtor) VALUES (%s, %s, %s, %s)",
+                (nome, latitude, longitude, cpf_produtor)
+            )
+            imagem_id = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO resultados (id, anomala) VALUES (%s, %s)",
+                (imagem_id, resultado == "Anômala")
+            )
+
+            # marca sucesso
             with open(caminho_status, 'w') as f:
-                f.write("Processando")
-
-            try:
-                img = cv2.imread(caminho_arquivo)
-                img = cv2.resize(img, (256, 256))
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                img_norm = img.astype("float32") / 255.0
-                entrada = np.expand_dims(img_norm, axis=0)
-
-                reconstruida = modelo_ae.predict(entrada)[0]
-                erro = np.mean((img_norm - reconstruida) ** 2)
-                resultado = "Anômala" if erro > threshold else "Normal"
-
-                cursor.execute("""
-                    INSERT INTO imagens (nome, latitude, longitude, cpf_produtor)
-                    VALUES (%s, %s, %s, %s)
-                """, (nome, latitude, longitude, cpf_produtor))
-                imagem_id = cursor.lastrowid
-
-                cursor.execute("""
-                    INSERT INTO resultados (id, anomala)
-                    VALUES (%s, %s)
-                """, (imagem_id, resultado == "Anômala"))
-
-                with open(caminho_status, 'w') as f:
-                    f.write(f"Concluído com sucesso ✅ — Resultado: {resultado}")
-            except Exception as e:
-                with open(caminho_status, 'w') as f:
-                    f.write(f"Erro no processamento ❌ — {str(e)}")
-                print(f"[ERRO] Falha ao processar {nome}: {e}")
+                f.write(f"Concluído com sucesso! — Resultado: {resultado}")
+        except Exception as e:
+            with open(caminho_status, 'w') as f:
+                f.write(f"Erro no processamento! — {e}")
+            print(f"[ERRO] Falha ao processar {nome}: {e}")
 
     conn.commit()
     cursor.close()
