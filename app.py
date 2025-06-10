@@ -7,6 +7,7 @@ from tensorflow.keras.models import load_model
 import numpy as np
 import cv2
 import mysql.connector
+from geopy.geocoders import Nominatim
 
 # Carrega o modelo uma vez
 modelo_ae = load_model("modelo_ia/model_checkpoint.h5transistor_AE_epoch_48.h5", compile=False)
@@ -45,28 +46,71 @@ def login():
 @app.route('/cadastro', methods=['GET', 'POST'])
 def cadastro():
     if request.method == 'POST':
-        cpf = request.form['cpf']
-        nome = request.form['nome']
-        senha = request.form['senha']
-        tipo = request.form['tipo']
-        cpf_produtor = request.form.get('cpf_produtor')
-        erro = None
+        cpf = request.form.get('cpf')
+        nome = request.form.get('nome')
+        senha = request.form.get('senha')
+        tipo = request.form.get('tipo')
+        cpf_produtor = request.form.get('cpf_produtor', '').strip() or None
 
-        if tipo in ('operador', 'mosaiqueiro'):
-            if not cpf_produtor:
-                erro = "CPF do produtor é obrigatório para operadores e mosaiqueiros."
-            else:
-                produtor = dao.buscar_por_cpf(cpf_produtor)
-                if not produtor or not isinstance(produtor, Produtor):
-                    erro = "CPF do produtor informado não pertence a um produtor cadastrado."
-        if erro:
-            return render_template('cadastro.html', erro=erro)
-        if tipo == 'produtor':
-            cpf_produtor = None
+        # Campos de localização (apenas para produtor)
+        latitude = request.form.get('latitude')
+        longitude = request.form.get('longitude')
+        ext_territorial = request.form.get('ext_territorial')
 
-        dao.cadastro(cpf, senha, tipo, nome, cpf_produtor)
-        return redirect(url_for('login'))
+        # Validações básicas
+        if not cpf or not nome or not senha or not tipo:
+            erro = "Por favor, preencha todos os campos obrigatórios."
+            return render_template("cadastro.html", erro=erro)
 
+        if tipo in ('operador', 'mosaiqueiro') and not cpf_produtor:
+            erro = "CPF do produtor é obrigatório para operadores e mosaiqueiros."
+            return render_template("cadastro.html", erro=erro)
+
+        if tipo == "produtor":
+            # Validar dados de localização para produtor
+            try:
+                latitude = float(latitude)
+                longitude = float(longitude)
+                ext_territorial = float(ext_territorial)
+            except (TypeError, ValueError):
+                erro = "Para produtores, latitude, longitude e extensão territorial devem ser números válidos."
+                return render_template("cadastro.html", erro=erro)
+
+        # Tenta cadastrar usuário
+        try:
+            # 1. Cadastra na tabela usuarios via DAO
+            dao.cadastro(cpf=cpf, senha=senha, tipo=tipo, nome=nome, cpf_produtor=cpf_produtor)
+
+            # 2. Se for produtor, insere localização na tabela localizacao
+            if tipo == "produtor":
+                from mysql.connector import connect, Error
+
+                try:
+                    with connect(
+                        host="localhost",
+                        user="agrineural",
+                        password="senha123",
+                        database="agrineural"
+                    ) as conn:
+                        with conn.cursor() as cursor:
+                            cursor.execute(
+                                """
+                                INSERT INTO localizacao (cpf_produtor, latitude, longitude, ext_territorial)
+                                VALUES (%s, %s, %s, %s)
+                                """,
+                                (cpf, latitude, longitude, ext_territorial)
+                            )
+                            conn.commit()
+                except Error as e:
+                    erro = f"Erro ao salvar localização: {str(e)}"
+                    return render_template("cadastro.html", erro=erro)
+
+            return redirect(url_for('login'))
+        except Exception as e:
+            erro = f"Erro ao cadastrar usuário: {str(e)}"
+            return render_template("cadastro.html", erro=erro)
+
+    # GET: apenas renderiza formulário
     return render_template('cadastro.html')
 
 @app.route('/area_produtor')
@@ -143,14 +187,12 @@ def upload():
                 erro = np.mean((img_norm - reconstruida) ** 2)
                 resultado = "Anômala" if erro > threshold else "Normal"
 
-                # Gravar imagem (sem passar id manualmente)
                 cursor.execute("""
                     INSERT INTO imagens (nome, latitude, longitude, cpf_produtor)
                     VALUES (%s, %s, %s, %s)
                 """, (nome, latitude, longitude, cpf_produtor))
                 imagem_id = cursor.lastrowid
 
-                # Gravar resultado
                 cursor.execute("""
                     INSERT INTO resultados (id, anomala)
                     VALUES (%s, %s)
