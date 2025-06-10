@@ -4,15 +4,83 @@
   <meta charset="UTF-8" />
   <title>Área do Mosaiqueiro</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <style>
+    #mapa {
+      height: 500px;
+      width: 100%;
+      margin-top: 20px;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
     <h2>Painel do Mosaiqueiro</h2>
-    <button onclick="alert('Abrir mapa de calor (em breve)')">Visualizar Mapa</button>
+    <div id="mapa"></div>
     <p style="text-align: center; margin-top: 1rem;">
-        <a href="/logout">Encerrar Sessão</a>
+      <a href="/logout">Encerrar Sessão</a>
     </p>
   </div>
+
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Plugin de heatmap -->
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
+  <script>
+    const imagens = {{ imagens | tojson }};
+    const centro  = {{ centro  | tojson }};
+    const raio_km = {{ raio    | tojson }};  // em km vindo do backend
+    const raio_m  = raio_km * 1000;           // converte para metros
+
+    // 1) Cria o mapa e adiciona camada base
+    const mapa = L.map('mapa').setView([centro.lat, centro.lng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(mapa);
+
+    // 2) Desenha o círculo verde da fazenda
+    L.circle([centro.lat, centro.lng], {
+      radius: raio_m,
+      color: 'green',
+      fillColor: 'lightgreen',
+      fillOpacity: 0.2
+    }).addTo(mapa);
+
+    // 3) Prepara dados para o heatmap: só anômalas, peso = 1
+    const heatData = imagens
+      .filter(img => img.anomala)
+      .map(img => [img.lat, img.lng, 1]);
+
+    // 4) Cria o heatmap (interpolação suave)
+    L.heatLayer(heatData, {
+      radius: 25,   // alcance de cada ponto, em pixels
+      blur: 15,     // quanto mais, mais suave
+      maxZoom: 17,
+      gradient: {
+        0.3: 'green',
+        0.5: 'yellow',
+        0.7: 'orange',
+        1.0: 'red'
+      }
+    }).addTo(mapa);
+
+    imagens
+      .filter(img => !img.anomala)
+      .forEach(img => {
+        L.circleMarker([img.lat, img.lng], {
+          radius: 6,
+          fillColor: 'blue',
+          color: '#000',
+          weight: 1,
+          fillOpacity: 0.6
+        }).bindPopup(`${img.nome}<br><strong>Normal</strong>`)
+          .addTo(mapa);
+      });
+
+  </script>
 </body>
 </html>
-
