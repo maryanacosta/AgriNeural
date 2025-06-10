@@ -2,8 +2,6 @@ CREATE DATABASE IF NOT EXISTS agrineural;
 
 USE agrineural;
 
-DROP TABLE IF EXISTS usuarios;
-
 CREATE TABLE usuarios (
     cpf VARCHAR(20) PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
