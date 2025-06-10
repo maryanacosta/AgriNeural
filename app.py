@@ -3,16 +3,23 @@ from model.usuario_dao import UsuarioDAO
 from model.usuario import Produtor, Operador, Mosaiqueiro
 import os
 import time
+from tensorflow.keras.models import load_model
+import numpy as np
+import cv2
+import mysql.connector
+
+# Carrega o modelo uma vez
+modelo_ae = load_model("modelo_ia/model_checkpoint.h5transistor_AE_epoch_48.h5", compile=False)
+threshold = 0.003638065652921796
 
 app = Flask(__name__)
-dao = UsuarioDAO(password='senha123')  # ajuste se necessário
+dao = UsuarioDAO(password='senha123')
 app.secret_key = 'chave_secreta_qualquer'
 UPLOAD_FOLDER = 'uploads'
 STATUS_FOLDER = 'status'
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(STATUS_FOLDER, exist_ok=True)
-
 
 @app.route('/')
 def index():
@@ -26,15 +33,13 @@ def login():
         usuario = dao.autenticar(cpf, senha)
         if usuario:
             session['cpf'] = usuario.cpf
-
             if isinstance(usuario, Produtor):
                 return redirect(url_for('area_produtor'))
             elif isinstance(usuario, Operador):
                 return redirect(url_for('area_operador'))
             elif isinstance(usuario, Mosaiqueiro):
                 return redirect(url_for('area_mosaiqueiro'))
-        else:
-            return "<h2>Erro: CPF ou senha inválidos.</h2><a href='/login'>Tentar novamente</a>"
+        return "<h2>Erro: CPF ou senha inválidos.</h2><a href='/login'>Tentar novamente</a>"
     return render_template('login.html')
 
 @app.route('/cadastro', methods=['GET', 'POST'])
@@ -45,7 +50,6 @@ def cadastro():
         senha = request.form['senha']
         tipo = request.form['tipo']
         cpf_produtor = request.form.get('cpf_produtor')
-
         erro = None
 
         if tipo in ('operador', 'mosaiqueiro'):
@@ -55,10 +59,8 @@ def cadastro():
                 produtor = dao.buscar_por_cpf(cpf_produtor)
                 if not produtor or not isinstance(produtor, Produtor):
                     erro = "CPF do produtor informado não pertence a um produtor cadastrado."
-
         if erro:
             return render_template('cadastro.html', erro=erro)
-
         if tipo == 'produtor':
             cpf_produtor = None
 
@@ -66,7 +68,6 @@ def cadastro():
         return redirect(url_for('login'))
 
     return render_template('cadastro.html')
-
 
 @app.route('/area_produtor')
 def area_produtor():
@@ -86,7 +87,6 @@ def area_mosaiqueiro():
         return redirect(url_for('login'))
     return render_template('area_mosaiqueiro.html')
 
-
 @app.route('/upload', methods=['POST'])
 def upload():
     if 'cpf' not in session:
@@ -99,17 +99,15 @@ def upload():
         return "Apenas operadores podem enviar imagens.", 403
 
     cpf_produtor = operador.cpf_produtor
-
     arquivos = request.files.getlist('imagens')
     if not arquivos:
         return "Nenhuma imagem enviada.", 400
 
-    import mysql.connector
     conn = mysql.connector.connect(
         host="localhost",
         user="root",
-        password="senha123",         # ⬅ Altere isso
-        database="agrineural"          # ⬅ Altere isso
+        password="senha123",
+        database="agrineural"
     )
     cursor = conn.cursor()
 
@@ -118,45 +116,57 @@ def upload():
     os.makedirs(upload_path, exist_ok=True)
     os.makedirs(status_path_base, exist_ok=True)
 
-    # Contador inicial de imagens
-    cursor.execute("SELECT COUNT(*) FROM imagens WHERE cpf_produtor = %s", (cpf_produtor,))
-    contador = cursor.fetchone()[0] + 1
-
     for file in arquivos:
         if file and file.filename:
             nome = file.filename
-            latitude = request.form.get(f'latitude_{nome}')
-            longitude = request.form.get(f'longitude_{nome}')
+            try:
+                latitude = float(request.form.get(f'latitude_{nome}', '0'))
+                longitude = float(request.form.get(f'longitude_{nome}', '0'))
+            except ValueError:
+                return f"Latitude ou longitude inválida para {nome}", 400
 
-            # Salvar fisicamente
             caminho_arquivo = os.path.join(upload_path, nome)
             file.save(caminho_arquivo)
 
             caminho_status = os.path.join(status_path_base, nome + ".txt")
             with open(caminho_status, 'w') as f:
-                f.write("Aguardando processamento")
-            time.sleep(0.5)
-            with open(caminho_status, 'w') as f:
                 f.write("Processando")
-            time.sleep(1)
-            with open(caminho_status, 'w') as f:
-                f.write("Concluído com sucesso ✅")
 
-            # Salvar no banco de dados
-            cursor.execute("""
-                INSERT INTO imagens (id, nome, latitude, longitude, cpf_produtor)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (contador, nome, int(latitude), int(longitude), cpf_produtor))
-            contador += 1
+            try:
+                img = cv2.imread(caminho_arquivo)
+                img = cv2.resize(img, (256, 256))
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                img_norm = img.astype("float32") / 255.0
+                entrada = np.expand_dims(img_norm, axis=0)
+
+                reconstruida = modelo_ae.predict(entrada)[0]
+                erro = np.mean((img_norm - reconstruida) ** 2)
+                resultado = "Anômala" if erro > threshold else "Normal"
+
+                # Gravar imagem (sem passar id manualmente)
+                cursor.execute("""
+                    INSERT INTO imagens (nome, latitude, longitude, cpf_produtor)
+                    VALUES (%s, %s, %s, %s)
+                """, (nome, latitude, longitude, cpf_produtor))
+                imagem_id = cursor.lastrowid
+
+                # Gravar resultado
+                cursor.execute("""
+                    INSERT INTO resultados (id, anomala)
+                    VALUES (%s, %s)
+                """, (imagem_id, resultado == "Anômala"))
+
+                with open(caminho_status, 'w') as f:
+                    f.write(f"Concluído com sucesso ✅ — Resultado: {resultado}")
+            except Exception as e:
+                with open(caminho_status, 'w') as f:
+                    f.write(f"Erro no processamento ❌ — {str(e)}")
+                print(f"[ERRO] Falha ao processar {nome}: {e}")
 
     conn.commit()
     cursor.close()
     conn.close()
-
     return redirect(url_for('status'))
-
-
-
 
 @app.route('/status')
 def status():
@@ -165,7 +175,6 @@ def status():
 
     cpf = session['cpf']
     operador = dao.buscar_por_cpf(cpf)
-
     if not operador or not isinstance(operador, Operador):
         return "Apenas operadores podem ver o status.", 403
 
@@ -173,24 +182,20 @@ def status():
     status_list = []
 
     pasta_status = os.path.join(STATUS_FOLDER, cpf_produtor)
-    if not os.path.exists(pasta_status):
-        return render_template('status.html', status_list=[])
-
-    for filename in os.listdir(pasta_status):
-        if filename.endswith(".txt"):
-            imagem = filename[:-4]
-            with open(os.path.join(pasta_status, filename), 'r') as f:
-                status = f.read()
-            status_list.append((imagem, status))
+    if os.path.exists(pasta_status):
+        for filename in os.listdir(pasta_status):
+            if filename.endswith(".txt"):
+                imagem = filename[:-4]
+                with open(os.path.join(pasta_status, filename), 'r') as f:
+                    status = f.read()
+                status_list.append((imagem, status))
 
     return render_template('status.html', status_list=status_list)
-
 
 @app.route('/logout')
 def logout():
     session.pop('cpf', None)
     return redirect(url_for('login'))
-
 
 if __name__ == '__main__':
     app.run(debug=True)
