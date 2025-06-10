@@ -46,7 +46,7 @@
 
       <div id="campo-extensao" class="hidden">
         <label for="extensao" class="block font-medium text-gray-700">Extensão Territorial (hectares):</label>
-        <input type="number" id="extensao" name="extensao" step="0.01" min="0" class="w-full mt-1 p-2 border rounded-md">
+        <input type="number" id="extensao" name="ext_territorial" step="0.01" min="0" class="w-full mt-1 p-2 border rounded-md">
       </div>
 
       <div id="mapa-container" class="hidden">
@@ -61,6 +61,11 @@
         <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 transition">Cadastrar</button>
       </div>
     </form>
+    {% if erro %}
+        <div class="bg-red-100 text-red-800 px-4 py-2 rounded-md mb-4">
+            {{ erro }}
+        </div>
+    {% endif %}
   </div>
 
   <script>
@@ -71,7 +76,7 @@
       const mapaContainer = document.getElementById("mapa-container");
       const campoExtensao = document.getElementById("campo-extensao");
 
-      cpfGroup.classList.toggle("hidden", tipo !== "mosaiqueiro");
+      cpfGroup.classList.toggle("hidden", tipo == "produtor");
       mapaContainer.classList.toggle("hidden", tipo !== "produtor");
       campoExtensao.classList.toggle("hidden", tipo !== "produtor");
 
