@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Cadastro de Usuário</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    #map { height: 300px; }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <div class="max-w-2xl mx-auto p-8 bg-white shadow-xl rounded-xl mt-10">
+    <h2 class="text-2xl font-bold mb-6 text-center text-green-700">Cadastro de Usuário</h2>
+    <form action="/cadastro" method="post" class="space-y-4">
+
+      <div>
+        <label for="cpf" class="block font-medium text-gray-700">CPF:</label>
+        <input type="text" id="cpf" name="cpf" required class="w-full mt-1 p-2 border rounded-md">
+      </div>
+
+      <div>
+        <label for="nome" class="block font-medium text-gray-700">Nome:</label>
+        <input type="text" id="nome" name="nome" required class="w-full mt-1 p-2 border rounded-md">
+      </div>
+
+      <div>
+        <label for="senha" class="block font-medium text-gray-700">Senha:</label>
+        <input type="password" id="senha" name="senha" required class="w-full mt-1 p-2 border rounded-md">
+      </div>
+
+      <div>
+        <label for="tipo" class="block font-medium text-gray-700">Tipo de Usuário:</label>
+        <select id="tipo" name="tipo" required onchange="mostrarCampos()" class="w-full mt-1 p-2 border rounded-md">
+          <option value="produtor">Produtor</option>
+          <option value="mosaiqueiro">Mosaiqueiro</option>
+          <option value="operador">Operador</option>
+        </select>
+      </div>
+
+      <div id="cpf-produtor-group" class="hidden">
+        <label for="cpf_produtor" class="block font-medium text-gray-700">CPF do Produtor:</label>
+        <input type="text" id="cpf_produtor" name="cpf_produtor" class="w-full mt-1 p-2 border rounded-md">
+      </div>
+
+      <div id="campo-extensao" class="hidden">
+        <label for="extensao" class="block font-medium text-gray-700">Extensão Territorial (hectares):</label>
+        <input type="number" id="extensao" name="ext_territorial" step="0.01" min="0" class="w-full mt-1 p-2 border rounded-md">
+      </div>
+
+      <div id="mapa-container" class="hidden">
+        <label class="block font-medium text-gray-700 mb-2">Localização da Fazenda:</label>
+        <div id="map" class="rounded-md border"></div>
+        <p id="local-info" class="text-sm text-gray-600 mt-2"></p>
+        <input type="hidden" name="latitude" id="latitude">
+        <input type="hidden" name="longitude" id="longitude">
+      </div>
+
+      <div class="text-center pt-4">
+        <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 transition">Cadastrar</button>
+      </div>
+    </form>
+    {% if erro %}
+        <div class="bg-red-100 text-red-800 px-4 py-2 rounded-md mb-4">
+            {{ erro }}
+        </div>
+    {% endif %}
+  </div>
+
+  <script>
+    function mostrarCampos() {
+      const tipo = document.getElementById("tipo").value;
+
+      const cpfGroup = document.getElementById("cpf-produtor-group");
+      const mapaContainer = document.getElementById("mapa-container");
+      const campoExtensao = document.getElementById("campo-extensao");
+
+      cpfGroup.classList.toggle("hidden", tipo == "produtor");
+      mapaContainer.classList.toggle("hidden", tipo !== "produtor");
+      campoExtensao.classList.toggle("hidden", tipo !== "produtor");
+
+      if (tipo === "produtor") {
+        setTimeout(() => {
+          map.invalidateSize();
+        }, 300); // pequena espera para garantir renderização
+      }
+    }
+    const map = L.map("map").setView([-19.75, -43.95], 6);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors"
+    }).addTo(map);
+
+    let marker;
+    map.on("click", function (e) {
+      const lat = e.latlng.lat.toFixed(6);
+      const lng = e.latlng.lng.toFixed(6);
+      document.getElementById("latitude").value = lat;
+      document.getElementById("longitude").value = lng;
+      document.getElementById("local-info").textContent = `Localização escolhida: ${lat}, ${lng}`;
+      if (marker) {
+        marker.setLatLng(e.latlng);
+      } else {
+        marker = L.marker(e.latlng).addTo(map);
+      }
+    });
+  </script>
+</body>
+</html>
+
