@@ -1,10 +1,10 @@
 from flask import Flask, redirect, url_for
-from controllers.authController import auth_bp
-from controllers.produtorController import produtor_bp
-from controllers.operadorController import operador_bp
-from controllers.mosaiqueiroController import mosaiqueiro_bp
-from controllers.uploadController import upload_bp
-from controllers.statusController import status_bp
+from MVC.controllers.authController import auth_bp
+from MVC.controllers.produtorController import produtor_bp
+from MVC.controllers.operadorController import operador_bp
+from MVC.controllers.mosaiqueiroController import mosaiqueiro_bp
+from MVC.controllers.uploadController import upload_bp
+from MVC.controllers.statusController import status_bp
 
 # Inicializa o framework e adiciona o direcionamento do UI
 app = Flask(__name__,

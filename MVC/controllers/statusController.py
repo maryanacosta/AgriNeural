@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, session, current_app
-from model.usuario_dao import UsuarioDAO
-from model.usuario import Operador
+from MVC.model.usuario_dao import UsuarioDAO
+from MVC.model.usuario import Operador
 import os
 
 status_bp = Blueprint('status', __name__)

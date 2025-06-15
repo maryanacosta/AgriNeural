@@ -1,5 +1,5 @@
 import mysql.connector
-from model.usuario_factory import UsuarioFactory
+from MVC.model.usuario_factory import UsuarioFactory
 
 # classe para encapsular ações no banco de dados
 

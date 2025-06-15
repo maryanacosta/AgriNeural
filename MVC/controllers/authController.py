@@ -1,7 +1,7 @@
 from flask import Blueprint, request, render_template, redirect, url_for, session
-from model.usuario_dao import UsuarioDAO
-from model.usuario import Produtor, Operador, Mosaiqueiro
-from services.LocationService import salvarLocalizacaoProdutor
+from MVC.model.usuario_dao import UsuarioDAO
+from MVC.model.usuario import Produtor, Operador, Mosaiqueiro
+from MVC.services.LocationService import salvarLocalizacaoProdutor
 
 auth_bp = Blueprint('auth', __name__)
 dao = UsuarioDAO(password='senha123')

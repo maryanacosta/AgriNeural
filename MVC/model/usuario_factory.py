@@ -1,4 +1,4 @@
-from model.usuario import Produtor, Operador, Mosaiqueiro
+from MVC.model.usuario import Produtor, Operador, Mosaiqueiro
 
 
 # padrão de projeto para criar um usuário
