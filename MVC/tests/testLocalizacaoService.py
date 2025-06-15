@@ -6,6 +6,6 @@ def test_salvarLocalizacaoProdutor():
         cpf="12345678900",
         latitude=-23.5,
         longitude=-46.6,
-        ext_territorial=100
+        extTerritorial=100
     )
     assert ok is True or ok is False

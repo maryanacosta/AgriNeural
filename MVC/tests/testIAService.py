@@ -2,5 +2,5 @@
 from MVC.services.IAService import analisarImagem
 
 def test_analisarImagem():
-    resultado = analisarImagem('tests/imagens/teste.jpg')
+    resultado = analisarImagem('MVC/tests/imagens/teste.jpg')
     assert resultado in ['Normal', 'Anômala']
