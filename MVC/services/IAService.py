@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from tensorflow.keras.models import load_model
 
-modelo_ae = load_model("services/model_checkpoint.h5transistor_AE_epoch_48.h5", compile=False)
+modelo_ae = load_model("MVC/services/model_checkpoint.h5transistor_AE_epoch_48.h5", compile=False)
 threshold = 0.003638065652921796
 
 # função para verificar se o mamoeiro é anômalo ou não
