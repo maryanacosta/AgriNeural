@@ -18,7 +18,7 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['STATUS_FOLDER'] = 'status'
 
 # direcionamento para cada funcionalidade do site
-app.register_blueprint(auth_bp, url_prefix='/auth')
+app.register_blueprint(auth_bp)
 app.register_blueprint(produtor_bp)
 app.register_blueprint(operador_bp)
 app.register_blueprint(mosaiqueiro_bp)
