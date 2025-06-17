@@ -36,7 +36,7 @@ CREATE TABLE resultados (
     FOREIGN KEY (id) REFERENCES imagens(id) ON DELETE CASCADE
 );
 
-// nao executei ainda
+
 CREATE TABLE localizacao (
     cpf_produtor VARCHAR(20) PRIMARY KEY,
     latitude FLOAT NOT NULL,
