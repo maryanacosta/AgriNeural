@@ -1,7 +1,7 @@
 from flask import Blueprint, request, session, redirect, url_for, current_app
 from MVC.model.usuario_dao import UsuarioDAO
 from MVC.model.usuario import Operador
-from MVC.services.IAService import analisarImagem
+from MVC.services.IAService import ModeloAgrineural
 import os
 import mysql.connector
 import cv2
@@ -74,7 +74,8 @@ def upload():
 
         try:
            
-           resultado = analisarImagem(caminhoArquivo=caminho_arquivo)
+           modelo = ModeloAgrineural()
+           resultado = modelo.analisarImagem(caminhoArquivo=caminho_arquivo)
 
            # grava no banco
            cursor.execute(
