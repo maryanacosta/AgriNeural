@@ -1,4 +1,3 @@
-# tests/test_auth.py
 import pytest
 from unittest.mock import patch, MagicMock
 from MVC.app import app
@@ -55,7 +54,7 @@ def test_login_mosaiqueiro_sucesso(mock_autenticar, client): # teste de autentic
     mock_autenticar.return_value = mock_mosaiqueiro
 
     response = client.post('/auth/login', data={ # envia o POST com cpf e senha 
-        'cpf': '98765432100',
+        'cpf': '12345678900',
         'senha': 'teste123'
     })
     assert response.status_code == 302 # verifica se houve redirecionamento
