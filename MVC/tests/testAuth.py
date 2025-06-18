@@ -49,13 +49,13 @@ def test_login_operador_sucesso(mock_autenticar, client): # teste de autenticaç
     assert '/area_operador' in response.headers['Location'] # verifica se redirecionou para a área do mosaiqueiro
     mock_autenticar.assert_called_once_with('12345678900', 'teste123') # Verifica se o método autenticar foi chamado com os dados corretos
     
-patch('MVC.model.usuario_dao.UsuarioDAO.autenticar')
+@patch('MVC.model.usuario_dao.UsuarioDAO.autenticar')
 def test_login_mosaiqueiro_sucesso(mock_autenticar, client): # teste de autenticação do mosaiqueiro
     mock_mosaiqueiro = Mosaiqueiro(cpf='12345678900', nome='Teste', senha='teste123', cpf_produtor='98765432100') # cria um objeto válido
     mock_autenticar.return_value = mock_mosaiqueiro
 
     response = client.post('/auth/login', data={ # envia o POST com cpf e senha 
-        'cpf': '98765432100',
+        'cpf': '12345678900',
         'senha': 'teste123'
     })
     assert response.status_code == 302 # verifica se houve redirecionamento
