@@ -1,4 +1,3 @@
-# tests/test_auth.py
 import pytest
 from unittest.mock import patch, MagicMock
 from MVC.app import app
