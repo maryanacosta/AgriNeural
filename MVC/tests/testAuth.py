@@ -26,7 +26,7 @@ def test_login_produtor_sucesso(mock_autenticar, client): # teste de autenticaç
     mock_produtor = Produtor(cpf='12345678900', nome='Teste', senha='teste123') # cria um produtor válido
     mock_autenticar.return_value = mock_produtor 
 
-    response = client.post('/auth/login', data={ # evia requisição com cpf e senha de teste
+    response = client.post('/auth/login', data={ # envia requisição com cpf e senha de teste
         'cpf': '12345678900',
         'senha': 'teste123'
     })
