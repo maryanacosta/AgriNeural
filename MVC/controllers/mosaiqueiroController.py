@@ -6,7 +6,7 @@ mosaiqueiro_bp = Blueprint('mosaiqueiro', __name__)
 
 # página do mosaiqueiro
 
-@mosaiqueiro_bp.route('/area_mosaiqueiro')
+@mosaiqueiro_bp.route('/area-mosaiqueiro')
 def area_mosaiqueiro():
     if 'cpf' not in session:
         return "Você precisa estar logado.", 403

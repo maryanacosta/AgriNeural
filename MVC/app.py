@@ -1,4 +1,5 @@
-from flask import Flask, redirect, url_for
+from flask import Flask, redirect, url_for, jsonify
+from flask_cors import CORS
 from MVC.controllers.authController import auth_bp
 from MVC.controllers.produtorController import produtor_bp
 from MVC.controllers.operadorController import operador_bp
@@ -11,6 +12,7 @@ app = Flask(__name__,
             template_folder='./view/templates',
             static_folder='./view/static'
             )
+CORS(app, supports_credentials=True)
 
 # configurações
 app.secret_key = 'chave_secreta_qualquer'
@@ -28,7 +30,7 @@ app.register_blueprint(status_bp)
 # inicialização
 @app.route('/')
 def index():
-    return redirect(url_for('auth.login'))
+    return redirect('http://localhost:5173/')
 
 if __name__ == '__main__':
     app.run(debug=True)
