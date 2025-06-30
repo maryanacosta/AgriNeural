@@ -20,21 +20,21 @@ class UsuarioDAO:
 
     def buscar_por_cpf(self, cpf):
         try:
-            sql = "SELECT cpf, senha, tipo, nome, cpf_produtor FROM usuarios WHERE cpf = %s"
+            sql = "SELECT cpf, senha, tipo, nome FROM usuarios WHERE cpf = %s"
             self.cursor.execute(sql, (cpf,))
             row = self.cursor.fetchone()
 
             if row:
-                cpf, senha, tipo, nome, cpf_produtor = row
-                return UsuarioFactory.criar_usuario(tipo, cpf, senha, nome=nome, cpf_produtor=cpf_produtor)
+                cpf, senha, tipo, nome = row
+                return UsuarioFactory.criar_usuario(tipo, cpf, senha, nome=nome)
         except mysql.connector.Error as err:
             print(f"[ERRO] Erro ao buscar usuário: {err}")
         return None
 
-    def cadastro(self, cpf, senha, tipo, nome, cpf_produtor=None):
+    def cadastro(self, cpf, senha, tipo, nome):
         try:
-            sql = "INSERT INTO usuarios (cpf, senha, tipo, nome, cpf_produtor) VALUES (%s, %s, %s, %s, %s)"
-            self.cursor.execute(sql, (cpf, senha, tipo, nome, cpf_produtor))
+            sql = "INSERT INTO usuarios (cpf, senha, tipo, nome) VALUES (%s, %s, %s, %s)"
+            self.cursor.execute(sql, (cpf, senha, tipo, nome))
             self.conn.commit()
             print("[INFO] Usuário cadastrado com sucesso.")
         except mysql.connector.IntegrityError:
@@ -44,16 +44,17 @@ class UsuarioDAO:
 
     def autenticar(self, cpf, senha):
         try:
-            sql = "SELECT cpf, senha, tipo, nome, cpf_produtor FROM usuarios WHERE cpf = %s AND senha = %s"
+            sql = "SELECT cpf, senha, tipo, nome FROM usuarios WHERE cpf = %s AND senha = %s"
             self.cursor.execute(sql, (cpf, senha))
             row = self.cursor.fetchone()
 
             if row:
-                cpf, senha, tipo, nome, cpf_produtor = row
-                return UsuarioFactory.criar_usuario(tipo, cpf, senha, nome=nome, cpf_produtor=cpf_produtor)
+                cpf, senha, tipo, nome = row
+                return UsuarioFactory.criar_usuario(tipo, cpf, senha, nome=nome)
         except mysql.connector.Error as err:
             print(f"[ERRO] Erro ao autenticar usuário: {err}")
         return None
+    
 
     def fechar(self):
         self.cursor.close()

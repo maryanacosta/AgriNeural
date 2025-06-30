@@ -1,4 +1,3 @@
-
 # classe mãe que possui funcionalidades genéricas
 
 class Usuario:
@@ -19,18 +18,16 @@ class Produtor(Usuario):
 
 
 class Operador(Usuario):
-    def __init__(self, cpf, senha, nome=None, cpf_produtor=None):
+    def __init__(self, cpf, senha, nome=None):
         super().__init__(cpf, senha, nome)
-        self.cpf_produtor = cpf_produtor
 
     def acessar_painel(self):
         print("Painel do OPERADOR carregado.")
 
 
 class Mosaiqueiro(Usuario):
-    def __init__(self, cpf, senha, nome=None, cpf_produtor=None):
+    def __init__(self, cpf, senha, nome=None):
         super().__init__(cpf, senha, nome)
-        self.cpf_produtor = cpf_produtor
 
     def acessar_painel(self):
         print("Painel do MOSAIQUEIRO carregado.")

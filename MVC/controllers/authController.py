@@ -2,7 +2,6 @@ from flask import Blueprint, request, jsonify, session, redirect
 
 from MVC.model.usuario_dao import UsuarioDAO
 from MVC.model.usuario import Produtor, Operador, Mosaiqueiro
-from MVC.services.LocationService import salvarLocalizacaoProdutor
 
 auth_bp = Blueprint('auth', __name__)
 dao = UsuarioDAO(password='senha123')
@@ -52,18 +51,13 @@ def cadastro():
         return jsonify({'status': 'error', 'message': 'Preencha todos os campos obrigatórios.'}), 400
 
     try:
-        # cpf_produtor removido da chamada
         dao.cadastro(cpf=cpf, senha=senha, tipo=tipo, nome=nome)
-
         return jsonify({'status': 'success', 'message': 'Usuário cadastrado com sucesso!'})
-
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Erro ao cadastrar usuário: {str(e)}'}), 500
 
 
-
 @auth_bp.route('/logout', methods=['GET'])
 def logout():
-    # Redireciona para uma rota React para logout, ou para a página inicial React
     session.pop('cpf', None)
     return redirect('http://localhost:5173/login')
