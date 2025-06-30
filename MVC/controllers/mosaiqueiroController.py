@@ -1,19 +1,22 @@
+# Importações do Flask e do mysql.connector
 from flask import Blueprint, session, render_template
 import mysql.connector
 
+# Cria o Blueprint da área do mosaiqueiro
 mosaiqueiro_bp = Blueprint('mosaiqueiro', __name__)
 
 
-# página do mosaiqueiro
-
+# Rota para a página principal da área do mosaiqueiro
 @mosaiqueiro_bp.route('/area-mosaiqueiro')
 def area_mosaiqueiro():
+    # Verifica se o usuário está logado
     if 'cpf' not in session:
         return "Você precisa estar logado.", 403
 
+    # Obtém o CPF do usuário da sessão
     cpf_mosaiqueiro = session['cpf']
 
-    # Conectar banco
+    # Conecta ao banco de dados MySQL
     conn = mysql.connector.connect(
         host="localhost",
         user="agrineural",
@@ -22,7 +25,8 @@ def area_mosaiqueiro():
     )
     cursor = conn.cursor(dictionary=True)
 
-    # Buscar CPF do produtor relacionado ao mosaiqueiro
+    # ❌ INCONSISTENTE: Tenta buscar `cpf_produtor` na tabela `usuarios`, 
+    # mas essa coluna não existe lá (no modelo novo, está em `fazendas` ou `usuarios_fazendas`)
     cursor.execute("""
         SELECT cpf_produtor FROM usuarios WHERE cpf = %s
     """, (cpf_mosaiqueiro,))
@@ -34,7 +38,8 @@ def area_mosaiqueiro():
 
     cpf_produtor = res['cpf_produtor']
 
-    # Buscar localização da fazenda do produtor
+    # ❌ INCONSISTENTE: tenta buscar localização da fazenda em uma tabela `localizacao`
+    # que foi removida no novo modelo de banco.
     cursor.execute("""
         SELECT latitude, longitude, ext_territorial FROM localizacao WHERE cpf_produtor = %s
     """, (cpf_produtor,))
@@ -44,7 +49,8 @@ def area_mosaiqueiro():
         conn.close()
         return "Localização da fazenda não cadastrada.", 404
 
-    # Buscar imagens e se são anômalas ou não
+    # ❌ INCONSISTENTE: busca imagens usando `cpf_produtor` na tabela `imagens`, 
+    # mas essa coluna também não existe no modelo novo.
     cursor.execute("""
         SELECT i.nome, i.latitude, i.longitude, r.anomala
         FROM imagens i
@@ -53,17 +59,18 @@ def area_mosaiqueiro():
     """, (cpf_produtor,))
     imagens = cursor.fetchall()
 
+    # Encerra conexão com o banco
     cursor.close()
     conn.close()
 
-    # Preparar dados para o template
+    # Prepara os dados da fazenda para o mapa
     centro = {
         'lat': float(localizacao['latitude']),
         'lng': float(localizacao['longitude'])
     }
-    raio = float(localizacao['ext_territorial'])  # assumindo em km
+    raio = float(localizacao['ext_territorial'])  # Raio do círculo no mapa
 
-    # Formatando imagens para o JS no template
+    # Monta a lista de imagens para o JS (mapa de calor)
     lista_imagens = []
     for img in imagens:
         lista_imagens.append({
@@ -73,6 +80,7 @@ def area_mosaiqueiro():
             'anomala': bool(img['anomala'])
         })
 
+    # Renderiza o template HTML com os dados passados
     return render_template('area_mosaiqueiro.html',
                            centro=centro,
                            raio=raio,
